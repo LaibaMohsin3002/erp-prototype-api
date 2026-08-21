@@ -69,6 +69,8 @@ builder.Services.AddScoped<SupplierService>();
 builder.Services.AddScoped<ItemService>();
 builder.Services.AddScoped<PurchaseOrderService>();
 builder.Services.AddScoped<AuditService>();
+builder.Services.AddScoped<WorkflowDefinitionService>();
+builder.Services.AddScoped<WorkflowEngineService>();
 
 builder.Services.AddCors(options =>
 {

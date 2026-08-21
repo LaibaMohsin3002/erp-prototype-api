@@ -9,8 +9,11 @@ public class PurchaseOrderService
 {
     private readonly AppDbContext _db;
     private readonly AuditService _audit;
-    public PurchaseOrderService(AppDbContext db) => _db = db;
-
+    public PurchaseOrderService(AppDbContext db, AuditService audit)
+    {
+        _db = db;
+        _audit = audit;
+    }
     public async Task<List<POListDto>> GetAllAsync() =>
         await _db.POHeaders
             .Include(h => h.Supplier)
@@ -114,5 +117,42 @@ public class PurchaseOrderService
     {
         var count = await _db.POHeaders.CountAsync();
         return $"PO-{(count + 1):D6}"; // PO-000001, PO-000002, ...
+    }
+
+    public async Task<(bool Success, string? Error)> SubmitAsync(int poId, string actingUser, WorkflowEngineService engine)
+    {
+        var po = await _db.POHeaders.FindAsync(poId);
+        if (po is null) return (false, "Purchase order not found.");
+        if (po.Status != "Draft") return (false, "Only draft purchase orders can be submitted.");
+
+        var (success, error, _) = await engine.StartWorkflowAsync("PurchaseOrder", poId, po.TotalAmount, actingUser);
+        if (!success) return (false, error);
+
+        po.Status = "Submitted";
+        await _db.SaveChangesAsync();
+        return (true, null);
+    }
+
+    public async Task UpdateStatusAsync(int poId, string status)
+    {
+        var po = await _db.POHeaders.FindAsync(poId);
+        if (po is null) return;
+        po.Status = status;
+        await _db.SaveChangesAsync();
+    }
+    public async Task<List<ApprovalHistoryDto>> GetApprovalHistoryAsync(int poId)
+    {
+        var instance = await _db.WorkflowInstances
+            .Include(i => i.Tasks)
+            .Where(i => i.DocumentType == "PurchaseOrder" && i.DocumentId == poId)
+            .OrderByDescending(i => i.StartedDate)
+            .FirstOrDefaultAsync();
+
+        if (instance is null) return new List<ApprovalHistoryDto>();
+
+        return instance.Tasks
+            .OrderBy(t => t.StepNo)
+            .Select(t => new ApprovalHistoryDto(t.StepNo, t.AssignedRole, t.Status, t.ActionedBy, t.ActionedDate, t.Comments))
+            .ToList();
     }
 }

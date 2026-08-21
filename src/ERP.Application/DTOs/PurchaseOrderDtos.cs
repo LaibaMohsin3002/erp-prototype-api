@@ -10,3 +10,4 @@ public record POLineDto(int POLineId, int LineNo, int ItemId, string ItemCode, s
 public record POListDto(int POId, string PONumber, DateTime PODate, string SupplierName, string Status, decimal TotalAmount);
 
 public record PODetailDto(int POId, string PONumber, DateTime PODate, int SupplierId, string SupplierName, string? Remarks, string Status, decimal TotalQty, decimal TotalAmount, List<POLineDto> Lines);
+public record ApprovalHistoryDto(int StepNo, string AssignedRole, string Status, string? ActionedBy, DateTime? ActionedDate, string? Comments);

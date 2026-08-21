@@ -20,6 +20,10 @@ public class AppDbContext : DbContext
     public DbSet<POHeader> POHeaders => Set<POHeader>();
     public DbSet<POLine> POLines => Set<POLine>();
     public DbSet<AuditLog> AuditLogs => Set<AuditLog>();
+    public DbSet<WorkflowDefinition> WorkflowDefinitions => Set<WorkflowDefinition>();
+    public DbSet<WorkflowStep> WorkflowSteps => Set<WorkflowStep>();
+    public DbSet<WorkflowInstance> WorkflowInstances => Set<WorkflowInstance>();
+    public DbSet<WorkflowTask> WorkflowTasks => Set<WorkflowTask>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -50,5 +54,7 @@ public class AppDbContext : DbContext
             .Property(h => h.TotalAmount).HasPrecision(18, 2);
         modelBuilder.Entity<Item>()
             .Property(i => i.DefaultPurchasePrice).HasPrecision(18, 2);
+        modelBuilder.Entity<WorkflowDefinition>().Property(d => d.MinAmount).HasPrecision(18, 2);
+        modelBuilder.Entity<WorkflowDefinition>().Property(d => d.MaxAmount).HasPrecision(18, 2);
     }
 }

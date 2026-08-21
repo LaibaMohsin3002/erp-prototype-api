@@ -25,6 +25,8 @@ public class SupplierService
 
         var supplier = new Supplier { SupplierCode = dto.SupplierCode, SupplierName = dto.SupplierName, IsActive = true };
 
+        _db.Suppliers.Add(supplier);
+
         await _db.SaveChangesAsync();
         await _audit.LogAsync(actingUser, "Create", "Supplier", supplier.SupplierId, $"Supplier {supplier.SupplierCode} created");
         return (true, null, supplier.SupplierId);

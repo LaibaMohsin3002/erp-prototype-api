@@ -354,6 +354,149 @@ namespace ERP.Infrastructure.Migrations
                     b.ToTable("UserRoles");
                 });
 
+            modelBuilder.Entity("ERP.Domain.Entities.WorkflowDefinition", b =>
+                {
+                    b.Property<int>("WorkflowDefinitionId")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("WorkflowDefinitionId"));
+
+                    b.Property<string>("DocumentType")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("bit");
+
+                    b.Property<decimal>("MaxAmount")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<decimal>("MinAmount")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.HasKey("WorkflowDefinitionId");
+
+                    b.ToTable("WorkflowDefinitions");
+                });
+
+            modelBuilder.Entity("ERP.Domain.Entities.WorkflowInstance", b =>
+                {
+                    b.Property<int>("WorkflowInstanceId")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("WorkflowInstanceId"));
+
+                    b.Property<DateTime?>("CompletedDate")
+                        .HasColumnType("datetime2");
+
+                    b.Property<int>("CurrentStepNo")
+                        .HasColumnType("int");
+
+                    b.Property<int>("DocumentId")
+                        .HasColumnType("int");
+
+                    b.Property<string>("DocumentType")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("StartedBy")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<DateTime>("StartedDate")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<int>("WorkflowDefinitionId")
+                        .HasColumnType("int");
+
+                    b.HasKey("WorkflowInstanceId");
+
+                    b.HasIndex("WorkflowDefinitionId");
+
+                    b.ToTable("WorkflowInstances");
+                });
+
+            modelBuilder.Entity("ERP.Domain.Entities.WorkflowStep", b =>
+                {
+                    b.Property<int>("WorkflowStepId")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("WorkflowStepId"));
+
+                    b.Property<int>("ParallelGroup")
+                        .HasColumnType("int");
+
+                    b.Property<string>("RequiredRole")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<int>("StepNo")
+                        .HasColumnType("int");
+
+                    b.Property<int>("WorkflowDefinitionId")
+                        .HasColumnType("int");
+
+                    b.HasKey("WorkflowStepId");
+
+                    b.HasIndex("WorkflowDefinitionId");
+
+                    b.ToTable("WorkflowSteps");
+                });
+
+            modelBuilder.Entity("ERP.Domain.Entities.WorkflowTask", b =>
+                {
+                    b.Property<int>("WorkflowTaskId")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("WorkflowTaskId"));
+
+                    b.Property<string>("ActionedBy")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<DateTime?>("ActionedDate")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("AssignedRole")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("Comments")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<DateTime>("CreatedDate")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<int>("StepNo")
+                        .HasColumnType("int");
+
+                    b.Property<int>("WorkflowInstanceId")
+                        .HasColumnType("int");
+
+                    b.HasKey("WorkflowTaskId");
+
+                    b.HasIndex("WorkflowInstanceId");
+
+                    b.ToTable("WorkflowTasks");
+                });
+
             modelBuilder.Entity("ERP.Domain.Entities.POHeader", b =>
                 {
                     b.HasOne("ERP.Domain.Entities.Supplier", "Supplier")
@@ -414,6 +557,39 @@ namespace ERP.Infrastructure.Migrations
                     b.Navigation("User");
                 });
 
+            modelBuilder.Entity("ERP.Domain.Entities.WorkflowInstance", b =>
+                {
+                    b.HasOne("ERP.Domain.Entities.WorkflowDefinition", "Definition")
+                        .WithMany()
+                        .HasForeignKey("WorkflowDefinitionId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Definition");
+                });
+
+            modelBuilder.Entity("ERP.Domain.Entities.WorkflowStep", b =>
+                {
+                    b.HasOne("ERP.Domain.Entities.WorkflowDefinition", "Definition")
+                        .WithMany("Steps")
+                        .HasForeignKey("WorkflowDefinitionId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Definition");
+                });
+
+            modelBuilder.Entity("ERP.Domain.Entities.WorkflowTask", b =>
+                {
+                    b.HasOne("ERP.Domain.Entities.WorkflowInstance", "Instance")
+                        .WithMany("Tasks")
+                        .HasForeignKey("WorkflowInstanceId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Instance");
+                });
+
             modelBuilder.Entity("ERP.Domain.Entities.AppPage", b =>
                 {
                     b.Navigation("RolePages");
@@ -434,6 +610,16 @@ namespace ERP.Infrastructure.Migrations
             modelBuilder.Entity("ERP.Domain.Entities.User", b =>
                 {
                     b.Navigation("UserRoles");
+                });
+
+            modelBuilder.Entity("ERP.Domain.Entities.WorkflowDefinition", b =>
+                {
+                    b.Navigation("Steps");
+                });
+
+            modelBuilder.Entity("ERP.Domain.Entities.WorkflowInstance", b =>
+                {
+                    b.Navigation("Tasks");
                 });
 #pragma warning restore 612, 618
         }

@@ -9,7 +9,7 @@ namespace ERP.API.Controllers;
 [Route("api/purchaseorders")]
 [Authorize]
 public class PurchaseOrdersController : ControllerBase
-{
+    {
     private readonly PurchaseOrderService _service;
     public PurchaseOrdersController(PurchaseOrderService service) => _service = service;
 
@@ -30,4 +30,16 @@ public class PurchaseOrdersController : ControllerBase
         var (success, error, poId) = await _service.CreateAsync(dto, userName);
         return success ? CreatedAtAction(nameof(GetById), new { id = poId }, null) : BadRequest(error);
     }
+
+    [HttpPost("{id}/submit")]
+    public async Task<IActionResult> Submit(int id, [FromServices] WorkflowEngineService engine)
+    {
+        var actingUser = User.Identity?.Name ?? "unknown";
+        var (success, error) = await _service.SubmitAsync(id, actingUser, engine);
+        return success ? NoContent() : BadRequest(error);
+    }
+
+    [HttpGet("{id}/approval-history")]
+    public async Task<IActionResult> GetApprovalHistory(int id) => Ok(await _service.GetApprovalHistoryAsync(id));
+
 }

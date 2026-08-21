@@ -36,6 +36,9 @@ public class PageService
             DisplaySequence = dto.DisplaySequence,
             IsActive = true
         };
+
+        _db.AppPages.Add(page);
+
         await _db.SaveChangesAsync();
         await _audit.LogAsync(actingUser, "Create", "Page", page.PageId, $"Page {page.PageCode} created");
         return (true, null, page.PageId);
