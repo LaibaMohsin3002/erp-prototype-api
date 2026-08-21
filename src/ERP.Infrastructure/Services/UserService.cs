@@ -8,8 +8,9 @@ namespace ERP.Infrastructure.Services;
 public class UserService
 {
     private readonly AppDbContext _db;
+    private readonly AuditService _audit;
 
-    public UserService(AppDbContext db) => _db = db;
+    public UserService(AppDbContext db, AuditService audit) { _db = db; _audit = audit; }
 
     public async Task<List<UserListDto>> GetAllAsync() =>
         await _db.Users
@@ -29,12 +30,63 @@ public class UserService
         return new UserDetailDto(user.UserId, user.UserName, user.FullName, user.Email, user.IsActive, roleIds);
     }
 
-    public async Task<(bool Success, string? Error, int? UserId)> CreateAsync(CreateUserDto dto)
+    //public async Task<(bool Success, string? Error, int? UserId)> CreateAsync(CreateUserDto dto)
+    //{
+    //    // UserService.CreateAsync — add at the top
+    //    if (string.IsNullOrWhiteSpace(dto.UserName) || string.IsNullOrWhiteSpace(dto.FullName) || string.IsNullOrWhiteSpace(dto.Email) || string.IsNullOrWhiteSpace(dto.Password))
+    //        return (false, "Username, full name, email, and password are required.", null);
+
+    //    if (await _db.Users.AnyAsync(u => u.UserName == dto.UserName))
+    //        return (false, "Username already exists.", null);
+
+    //    var user = new User
+    //    {
+    //        UserName = dto.UserName,
+    //        FullName = dto.FullName,
+    //        Email = dto.Email,
+    //        PasswordHash = BCrypt.Net.BCrypt.HashPassword(dto.Password),
+    //        IsActive = true
+    //    };
+    //    _db.Users.Add(user);
+    //    await _db.SaveChangesAsync();
+
+    //    foreach (var roleId in dto.RoleIds.Distinct())
+    //        _db.UserRoles.Add(new UserRole { UserId = user.UserId, RoleId = roleId, IsActive = true });
+
+    //    await _db.SaveChangesAsync();
+    //    return (true, null, user.UserId);
+    //}
+
+    //public async Task<(bool Success, string? Error)> UpdateAsync(int id, UpdateUserDto dto)
+    //{
+    //    var user = await _db.Users.FindAsync(id);
+    //    if (user is null) return (false, "User not found.");
+
+    //    user.FullName = dto.FullName;
+    //    user.Email = dto.Email;
+
+    //    var existingRoles = await _db.UserRoles.Where(ur => ur.UserId == id).ToListAsync();
+    //    _db.UserRoles.RemoveRange(existingRoles);
+    //    foreach (var roleId in dto.RoleIds.Distinct())
+    //        _db.UserRoles.Add(new UserRole { UserId = id, RoleId = roleId, IsActive = true });
+
+    //    await _db.SaveChangesAsync();
+    //    return (true, null);
+    //}
+
+    //public async Task<bool> SetActiveAsync(int id, bool isActive)
+    //{
+    //    var user = await _db.Users.FindAsync(id);
+    //    if (user is null) return false;
+    //    user.IsActive = isActive;
+    //    await _db.SaveChangesAsync();
+    //    return true;
+    //}
+
+    public async Task<(bool Success, string? Error, int? UserId)> CreateAsync(CreateUserDto dto, string actingUser)
     {
-        // UserService.CreateAsync — add at the top
         if (string.IsNullOrWhiteSpace(dto.UserName) || string.IsNullOrWhiteSpace(dto.FullName) || string.IsNullOrWhiteSpace(dto.Email) || string.IsNullOrWhiteSpace(dto.Password))
             return (false, "Username, full name, email, and password are required.", null);
-
         if (await _db.Users.AnyAsync(u => u.UserName == dto.UserName))
             return (false, "Username already exists.", null);
 
@@ -53,10 +105,11 @@ public class UserService
             _db.UserRoles.Add(new UserRole { UserId = user.UserId, RoleId = roleId, IsActive = true });
 
         await _db.SaveChangesAsync();
+        await _audit.LogAsync(actingUser, "Create", "User", user.UserId, $"User {user.UserName} created");
         return (true, null, user.UserId);
     }
 
-    public async Task<(bool Success, string? Error)> UpdateAsync(int id, UpdateUserDto dto)
+    public async Task<(bool Success, string? Error)> UpdateAsync(int id, UpdateUserDto dto, string actingUser)
     {
         var user = await _db.Users.FindAsync(id);
         if (user is null) return (false, "User not found.");
@@ -70,15 +123,18 @@ public class UserService
             _db.UserRoles.Add(new UserRole { UserId = id, RoleId = roleId, IsActive = true });
 
         await _db.SaveChangesAsync();
+        await _audit.LogAsync(actingUser, "Update", "User", id, $"User {user.UserName} updated");
         return (true, null);
     }
 
-    public async Task<bool> SetActiveAsync(int id, bool isActive)
+    public async Task<bool> SetActiveAsync(int id, bool isActive, string actingUser)
     {
         var user = await _db.Users.FindAsync(id);
         if (user is null) return false;
         user.IsActive = isActive;
         await _db.SaveChangesAsync();
+        await _audit.LogAsync(actingUser, isActive ? "Activate" : "Deactivate", "User", id, $"User {user.UserName} {(isActive ? "activated" : "deactivated")}");
         return true;
     }
+
 }

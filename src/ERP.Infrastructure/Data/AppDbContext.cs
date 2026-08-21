@@ -19,6 +19,7 @@ public class AppDbContext : DbContext
     public DbSet<Item> Items => Set<Item>();
     public DbSet<POHeader> POHeaders => Set<POHeader>();
     public DbSet<POLine> POLines => Set<POLine>();
+    public DbSet<AuditLog> AuditLogs => Set<AuditLog>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {

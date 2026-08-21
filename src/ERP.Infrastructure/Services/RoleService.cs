@@ -9,8 +9,8 @@ namespace ERP.Infrastructure.Services;
 public class RoleService 
 {
     private readonly AppDbContext _db;
-    public RoleService(AppDbContext db) => _db = db;
-
+    private readonly AuditService _audit;
+    public RoleService(AppDbContext db, AuditService audit) { _db = db; _audit = audit; }
     public async Task<List<RoleListDto>> GetAllAsync() =>
         await _db.Roles.Select(r => new RoleListDto(r.RoleId, r.RoleName, r.Description, r.IsActive)).ToListAsync();
 
@@ -22,7 +22,7 @@ public class RoleService
         return new RoleDetailDto(role.RoleId, role.RoleName, role.Description, role.IsActive, pageIds);
     }
 
-    public async Task<(bool Success, string? Error, int? RoleId)> CreateAsync(CreateRoleDto dto)
+    public async Task<(bool Success, string? Error, int? RoleId)> CreateAsync(CreateRoleDto dto, string actingUser)
     {
         // RoleService.CreateAsync — add at the top
         if (string.IsNullOrWhiteSpace(dto.RoleName))
@@ -39,10 +39,11 @@ public class RoleService
             _db.RolePages.Add(new RolePage { RoleId = role.RoleId, PageId = pageId, IsActive = true });
 
         await _db.SaveChangesAsync();
+        await _audit.LogAsync(actingUser, "Create", "Role", role.RoleId, $"Role {role.RoleName} created");
         return (true, null, role.RoleId);
     }
 
-    public async Task<(bool Success, string? Error)> UpdateAsync(int id, UpdateRoleDto dto)
+    public async Task<(bool Success, string? Error)> UpdateAsync(int id, UpdateRoleDto dto, string actingUser)
     {
         var role = await _db.Roles.FindAsync(id);
         if (role is null) return (false, "Role not found.");
@@ -56,14 +57,17 @@ public class RoleService
             _db.RolePages.Add(new RolePage { RoleId = id, PageId = pageId, IsActive = true });
 
         await _db.SaveChangesAsync();
+        await _audit.LogAsync(actingUser, "Update", "Role", id, $"Role {role.RoleName} updated");
         return (true, null);
+
     }
-    public async Task<bool> SetActiveAsync(int id, bool isActive)
+    public async Task<bool> SetActiveAsync(int id, bool isActive, string actingUser)
     {
         var role = await _db.Roles.FindAsync(id);
         if (role is null) return false;
         role.IsActive = isActive;
         await _db.SaveChangesAsync();
+        await _audit.LogAsync(actingUser, isActive ? "Activate" : "Deactivate", "Role", id, $"Role {role.RoleName} {(isActive ? "activated" : "deactivated")}");
         return true;
     }
 }

@@ -68,6 +68,7 @@ builder.Services.AddScoped<PageService>();
 builder.Services.AddScoped<SupplierService>();
 builder.Services.AddScoped<ItemService>();
 builder.Services.AddScoped<PurchaseOrderService>();
+builder.Services.AddScoped<AuditService>();
 
 builder.Services.AddCors(options =>
 {

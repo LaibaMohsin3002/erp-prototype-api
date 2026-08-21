@@ -8,6 +8,7 @@ namespace ERP.Infrastructure.Services;
 public class PurchaseOrderService
 {
     private readonly AppDbContext _db;
+    private readonly AuditService _audit;
     public PurchaseOrderService(AppDbContext db) => _db = db;
 
     public async Task<List<POListDto>> GetAllAsync() =>
@@ -105,7 +106,7 @@ public class PurchaseOrderService
 
         _db.POHeaders.Add(header);
         await _db.SaveChangesAsync();
-
+        await _audit.LogAsync(createdBy, "Create", "PurchaseOrder", header.POId, $"PO {header.PONumber} created, total {header.TotalAmount:C}");
         return (true, null, header.POId);
     }
 
