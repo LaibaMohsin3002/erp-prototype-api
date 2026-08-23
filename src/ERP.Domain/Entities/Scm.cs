@@ -34,6 +34,10 @@ public class POHeader
     public DateTime? UpdatedDate { get; set; }
 
     public ICollection<POLine> Lines { get; set; } = new List<POLine>();
+
+    public string PaymentTerms { get; set; } = default!;
+    public string DeliveryTerms { get; set; } = default!;
+    public string DeliveryLocation { get; set; } = default!;
 }
 
 public class POLine
@@ -49,4 +53,6 @@ public class POLine
     public decimal Qty { get; set; }
     public decimal UnitPrice { get; set; }
     public decimal Amount { get; set; } // Qty * UnitPrice, backend-calculated
+    public decimal DiscountPercent { get; set; }
+    public decimal NetPrice { get; set; } // UnitPrice after discount, backend-calculated
 }

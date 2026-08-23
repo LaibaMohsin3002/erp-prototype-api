@@ -20,6 +20,8 @@ public class WorkflowStep
     public int StepNo { get; set; }
     public string RequiredRole { get; set; } = default!;
     public int ParallelGroup { get; set; } // steps sharing a group number run in parallel; 0 = not parallel
+    public int TimeLimitHours { get; set; } = 0; // 0 = no limit
+    public string? EscalationRole { get; set; } // who it escalates to if overdue; null = no escalation
 }
 
 public class WorkflowInstance
@@ -50,4 +52,19 @@ public class WorkflowTask
     public DateTime? ActionedDate { get; set; }
     public string? Comments { get; set; }
     public DateTime CreatedDate { get; set; } = DateTime.UtcNow;
+    public DateTime? DueDate { get; set; }
+    public bool IsEscalated { get; set; } = false;
+}
+
+public class Delegation
+{
+    public int DelegationId { get; set; }
+    public int DelegatorUserId { get; set; }
+    public User Delegator { get; set; } = default!;
+    public int DelegateUserId { get; set; }
+    public User Delegate { get; set; } = default!;
+    public DateTime StartDate { get; set; }
+    public DateTime EndDate { get; set; }
+    public string? Reason { get; set; }
+    public bool IsActive { get; set; } = true;
 }

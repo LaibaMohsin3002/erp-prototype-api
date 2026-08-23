@@ -38,4 +38,20 @@ public class WorkflowDefinitionsController : ControllerBase
     [HttpPatch("{id}/deactivate")]
     public async Task<IActionResult> Deactivate(int id) =>
         await _service.SetActiveAsync(id, false, User.Identity?.Name ?? "unknown") ? NoContent() : NotFound();
+
+    [HttpPut("{id}")]
+    public async Task<IActionResult> Update(int id, CreateWorkflowDefinitionDto dto)
+    {
+        var actingUser = User.Identity?.Name ?? "unknown";
+        var (success, error) = await _service.UpdateAsync(id, dto, actingUser);
+        return success ? NoContent() : BadRequest(error);
+    }
+
+    [HttpDelete("{id}")]
+    public async Task<IActionResult> Delete(int id)
+    {
+        var actingUser = User.Identity?.Name ?? "unknown";
+        var (success, error) = await _service.DeleteAsync(id, actingUser);
+        return success ? NoContent() : BadRequest(error);
+    }
 }

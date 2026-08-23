@@ -24,7 +24,7 @@ public class AppDbContext : DbContext
     public DbSet<WorkflowStep> WorkflowSteps => Set<WorkflowStep>();
     public DbSet<WorkflowInstance> WorkflowInstances => Set<WorkflowInstance>();
     public DbSet<WorkflowTask> WorkflowTasks => Set<WorkflowTask>();
-
+    public DbSet<Delegation> Delegations => Set<Delegation>();
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         modelBuilder.Entity<AppPage>().HasKey(p => p.PageId);
@@ -56,5 +56,11 @@ public class AppDbContext : DbContext
             .Property(i => i.DefaultPurchasePrice).HasPrecision(18, 2);
         modelBuilder.Entity<WorkflowDefinition>().Property(d => d.MinAmount).HasPrecision(18, 2);
         modelBuilder.Entity<WorkflowDefinition>().Property(d => d.MaxAmount).HasPrecision(18, 2);
+        modelBuilder.Entity<POLine>().Property(l => l.DiscountPercent).HasPrecision(5, 2);
+        modelBuilder.Entity<POLine>().Property(l => l.NetPrice).HasPrecision(18, 2);
+        modelBuilder.Entity<Delegation>()
+        .HasOne(d => d.Delegator).WithMany().HasForeignKey(d => d.DelegatorUserId).OnDelete(DeleteBehavior.Restrict);
+        modelBuilder.Entity<Delegation>()
+        .HasOne(d => d.Delegate).WithMany().HasForeignKey(d => d.DelegateUserId).OnDelete(DeleteBehavior.Restrict);
     }
 }

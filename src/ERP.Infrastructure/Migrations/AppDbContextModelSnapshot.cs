@@ -94,6 +94,41 @@ namespace ERP.Infrastructure.Migrations
                     b.ToTable("AuditLogs");
                 });
 
+            modelBuilder.Entity("ERP.Domain.Entities.Delegation", b =>
+                {
+                    b.Property<int>("DelegationId")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("DelegationId"));
+
+                    b.Property<int>("DelegateUserId")
+                        .HasColumnType("int");
+
+                    b.Property<int>("DelegatorUserId")
+                        .HasColumnType("int");
+
+                    b.Property<DateTime>("EndDate")
+                        .HasColumnType("datetime2");
+
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("bit");
+
+                    b.Property<string>("Reason")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<DateTime>("StartDate")
+                        .HasColumnType("datetime2");
+
+                    b.HasKey("DelegationId");
+
+                    b.HasIndex("DelegateUserId");
+
+                    b.HasIndex("DelegatorUserId");
+
+                    b.ToTable("Delegations");
+                });
+
             modelBuilder.Entity("ERP.Domain.Entities.Item", b =>
                 {
                     b.Property<int>("ItemId")
@@ -141,12 +176,24 @@ namespace ERP.Infrastructure.Migrations
                     b.Property<DateTime>("CreatedDate")
                         .HasColumnType("datetime2");
 
+                    b.Property<string>("DeliveryLocation")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("DeliveryTerms")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
                     b.Property<DateTime>("PODate")
                         .HasColumnType("datetime2");
 
                     b.Property<string>("PONumber")
                         .IsRequired()
                         .HasColumnType("nvarchar(450)");
+
+                    b.Property<string>("PaymentTerms")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
 
                     b.Property<string>("Remarks")
                         .HasColumnType("nvarchar(max)");
@@ -194,6 +241,10 @@ namespace ERP.Infrastructure.Migrations
                         .HasPrecision(18, 2)
                         .HasColumnType("decimal(18,2)");
 
+                    b.Property<decimal>("DiscountPercent")
+                        .HasPrecision(5, 2)
+                        .HasColumnType("decimal(5,2)");
+
                     b.Property<string>("ItemCode")
                         .IsRequired()
                         .HasColumnType("nvarchar(max)");
@@ -207,6 +258,10 @@ namespace ERP.Infrastructure.Migrations
 
                     b.Property<int>("LineNo")
                         .HasColumnType("int");
+
+                    b.Property<decimal>("NetPrice")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("decimal(18,2)");
 
                     b.Property<int>("POHeaderPOId")
                         .HasColumnType("int");
@@ -436,6 +491,9 @@ namespace ERP.Infrastructure.Migrations
 
                     SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("WorkflowStepId"));
 
+                    b.Property<string>("EscalationRole")
+                        .HasColumnType("nvarchar(max)");
+
                     b.Property<int>("ParallelGroup")
                         .HasColumnType("int");
 
@@ -444,6 +502,9 @@ namespace ERP.Infrastructure.Migrations
                         .HasColumnType("nvarchar(max)");
 
                     b.Property<int>("StepNo")
+                        .HasColumnType("int");
+
+                    b.Property<int>("TimeLimitHours")
                         .HasColumnType("int");
 
                     b.Property<int>("WorkflowDefinitionId")
@@ -480,6 +541,12 @@ namespace ERP.Infrastructure.Migrations
                     b.Property<DateTime>("CreatedDate")
                         .HasColumnType("datetime2");
 
+                    b.Property<DateTime?>("DueDate")
+                        .HasColumnType("datetime2");
+
+                    b.Property<bool>("IsEscalated")
+                        .HasColumnType("bit");
+
                     b.Property<string>("Status")
                         .IsRequired()
                         .HasColumnType("nvarchar(max)");
@@ -495,6 +562,25 @@ namespace ERP.Infrastructure.Migrations
                     b.HasIndex("WorkflowInstanceId");
 
                     b.ToTable("WorkflowTasks");
+                });
+
+            modelBuilder.Entity("ERP.Domain.Entities.Delegation", b =>
+                {
+                    b.HasOne("ERP.Domain.Entities.User", "Delegate")
+                        .WithMany()
+                        .HasForeignKey("DelegateUserId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("ERP.Domain.Entities.User", "Delegator")
+                        .WithMany()
+                        .HasForeignKey("DelegatorUserId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("Delegate");
+
+                    b.Navigation("Delegator");
                 });
 
             modelBuilder.Entity("ERP.Domain.Entities.POHeader", b =>

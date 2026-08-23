@@ -26,7 +26,7 @@ public class WorkflowDefinitionService
 
         var steps = def.Steps
             .OrderBy(s => s.StepNo)
-            .Select(s => new WorkflowStepDto(s.WorkflowStepId, s.StepNo, s.RequiredRole, s.ParallelGroup))
+            .Select(s => new WorkflowStepDto(s.WorkflowStepId, s.StepNo, s.RequiredRole, s.ParallelGroup, s.TimeLimitHours, s.EscalationRole))
             .ToList();
 
         return new WorkflowDefinitionDetailDto(def.WorkflowDefinitionId, def.Name, def.DocumentType, def.MinAmount, def.MaxAmount, def.IsActive, steps);
@@ -66,7 +66,9 @@ public class WorkflowDefinitionService
             {
                 StepNo = step.StepNo,
                 RequiredRole = step.RequiredRole,
-                ParallelGroup = step.ParallelGroup
+                ParallelGroup = step.ParallelGroup,
+                TimeLimitHours = step.TimeLimitHours,
+                EscalationRole = step.EscalationRole
             });
         }
 
@@ -93,4 +95,64 @@ public class WorkflowDefinitionService
             .Include(d => d.Steps)
             .Where(d => d.DocumentType == documentType && d.IsActive && amount >= d.MinAmount && amount <= d.MaxAmount)
             .FirstOrDefaultAsync();
+
+    public async Task<(bool Success, string? Error)> UpdateAsync(int id, CreateWorkflowDefinitionDto dto, string actingUser)
+    {
+        if (string.IsNullOrWhiteSpace(dto.Name) || string.IsNullOrWhiteSpace(dto.DocumentType))
+            return (false, "Name and document type are required.");
+        if (dto.MinAmount < 0 || dto.MaxAmount <= dto.MinAmount)
+            return (false, "Max amount must be greater than min amount, and neither can be negative.");
+        if (dto.Steps is null || dto.Steps.Count == 0)
+            return (false, "A workflow definition must have at least one step.");
+        if (dto.Steps.Any(s => string.IsNullOrWhiteSpace(s.RequiredRole)))
+            return (false, "Every step must have a required role.");
+
+        var definition = await _db.WorkflowDefinitions.Include(d => d.Steps).FirstOrDefaultAsync(d => d.WorkflowDefinitionId == id);
+        if (definition is null) return (false, "Workflow definition not found.");
+
+        var overlapping = await _db.WorkflowDefinitions
+            .Where(d => d.DocumentType == dto.DocumentType && d.IsActive && d.WorkflowDefinitionId != id)
+            .Where(d => dto.MinAmount < d.MaxAmount && dto.MaxAmount > d.MinAmount)
+            .AnyAsync();
+        if (overlapping) return (false, "This amount range overlaps with an existing active workflow definition for this document type.");
+
+        definition.Name = dto.Name;
+        definition.DocumentType = dto.DocumentType;
+        definition.MinAmount = dto.MinAmount;
+        definition.MaxAmount = dto.MaxAmount;
+
+        _db.WorkflowSteps.RemoveRange(definition.Steps);
+        definition.Steps.Clear();
+        foreach (var step in dto.Steps.OrderBy(s => s.StepNo))
+        {
+            definition.Steps.Add(new WorkflowStep
+            {
+                StepNo = step.StepNo,
+                RequiredRole = step.RequiredRole,
+                ParallelGroup = step.ParallelGroup,
+                TimeLimitHours = step.TimeLimitHours,
+                EscalationRole = step.EscalationRole
+            });
+        }
+
+        await _db.SaveChangesAsync();
+        await _audit.LogAsync(actingUser, "Update", "WorkflowDefinition", id, $"Workflow '{definition.Name}' updated");
+        return (true, null);
+    }
+
+    public async Task<(bool Success, string? Error)> DeleteAsync(int id, string actingUser)
+    {
+        var hasInstances = await _db.WorkflowInstances.AnyAsync(i => i.WorkflowDefinitionId == id);
+        if (hasInstances)
+            return (false, "This workflow has already been used by one or more documents and cannot be deleted. Deactivate it instead.");
+
+        var definition = await _db.WorkflowDefinitions.Include(d => d.Steps).FirstOrDefaultAsync(d => d.WorkflowDefinitionId == id);
+        if (definition is null) return (false, "Workflow definition not found.");
+
+        _db.WorkflowSteps.RemoveRange(definition.Steps);
+        _db.WorkflowDefinitions.Remove(definition);
+        await _db.SaveChangesAsync();
+        await _audit.LogAsync(actingUser, "Delete", "WorkflowDefinition", id, $"Workflow '{definition.Name}' deleted");
+        return (true, null);
+    }
 }

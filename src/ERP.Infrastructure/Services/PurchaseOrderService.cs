@@ -31,12 +31,14 @@ public class PurchaseOrderService
         if (header is null) return null;
 
         var lines = header.Lines
-            .OrderBy(l => l.LineNo)
-            .Select(l => new POLineDto(l.POLineId, l.LineNo, l.ItemId, l.ItemCode, l.ItemDescription, l.Uom, l.Qty, l.UnitPrice, l.Amount))
-            .ToList();
+           .OrderBy(l => l.LineNo)
+           .Select(l => new POLineDto(l.POLineId, l.LineNo, l.ItemId, l.ItemCode, l.ItemDescription, l.Uom, l.Qty, l.UnitPrice, l.DiscountPercent, l.NetPrice, l.Amount))
+           .ToList();
 
-        return new PODetailDto(header.POId, header.PONumber, header.PODate, header.SupplierId, header.Supplier.SupplierName,
-            header.Remarks, header.Status, header.TotalQty, header.TotalAmount, lines);
+       return new PODetailDto(header.POId, header.PONumber, header.PODate, header.SupplierId, header.Supplier.SupplierName,
+            header.Remarks, header.PaymentTerms, header.DeliveryTerms, header.DeliveryLocation, header.Status,
+            header.CreatedBy, header.CreatedDate, header.TotalQty, header.TotalAmount, lines);
+
     }
 
     public async Task<(bool Success, string? Error, int? POId)> CreateAsync(CreatePODto dto, string createdBy)
@@ -52,6 +54,15 @@ public class PurchaseOrderService
         var items = await _db.Items.Where(i => itemIds.Contains(i.ItemId)).ToListAsync();
         if (items.Count != itemIds.Distinct().Count())
             return (false, "One or more items not found.", null);
+
+        if (string.IsNullOrWhiteSpace(dto.PaymentTerms) || string.IsNullOrWhiteSpace(dto.DeliveryTerms) || string.IsNullOrWhiteSpace(dto.DeliveryLocation))
+            return (false, "Payment terms, delivery terms, and delivery location are required.", null);
+
+        foreach (var line in dto.Lines)
+        {
+            if (line.DiscountPercent < 0 || line.DiscountPercent > 100)
+                return (false, "Discount percent must be between 0 and 100.", null);
+        }
 
         foreach (var line in dto.Lines)
         {
@@ -74,6 +85,9 @@ public class PurchaseOrderService
             PODate = dto.PODate,
             SupplierId = dto.SupplierId,
             Remarks = dto.Remarks,
+            PaymentTerms = dto.PaymentTerms,
+            DeliveryTerms = dto.DeliveryTerms,
+            DeliveryLocation = dto.DeliveryLocation,
             Status = "Draft",
             CreatedBy = createdBy,
             CreatedDate = DateTime.UtcNow
@@ -86,17 +100,20 @@ public class PurchaseOrderService
         foreach (var lineInput in dto.Lines)
         {
             var item = items.First(i => i.ItemId == lineInput.ItemId);
-            var amount = Math.Round(lineInput.Qty * lineInput.UnitPrice, 2); // backend calculates, never trusts client math
+            var netPrice = Math.Round(lineInput.UnitPrice * (1 - lineInput.DiscountPercent / 100m), 2);
+            var amount = Math.Round(lineInput.Qty * netPrice, 2); // backend calculates, never trusts client math
 
             header.Lines.Add(new POLine
             {
                 LineNo = lineNo++,
                 ItemId = item.ItemId,
                 ItemCode = item.ItemCode,
-                ItemDescription = item.ItemDescription, // snapshot at creation time, per spec 4.2
+                ItemDescription = item.ItemDescription,
                 Uom = item.Uom,
                 Qty = lineInput.Qty,
                 UnitPrice = lineInput.UnitPrice,
+                DiscountPercent = lineInput.DiscountPercent,
+                NetPrice = netPrice,
                 Amount = amount
             });
 

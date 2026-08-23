@@ -71,6 +71,8 @@ builder.Services.AddScoped<PurchaseOrderService>();
 builder.Services.AddScoped<AuditService>();
 builder.Services.AddScoped<WorkflowDefinitionService>();
 builder.Services.AddScoped<WorkflowEngineService>();
+builder.Services.AddScoped<DelegationService>();
+builder.Services.AddHostedService<EscalationBackgroundService>();
 
 builder.Services.AddCors(options =>
 {

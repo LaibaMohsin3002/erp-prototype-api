@@ -21,10 +21,11 @@ public class WorkflowTasksController : ControllerBase
     }
 
     [HttpGet("my-inbox")]
-    public async Task<IActionResult> GetMyInbox()
+    public async Task<IActionResult> GetMyInbox([FromServices] DelegationService delegations)
     {
-        var roles = User.FindAll(ClaimTypes.Role).Select(c => c.Value).ToList();
-        return Ok(await _engine.GetInboxTasksForRolesAsync(roles));
+        var userName = User.Identity?.Name ?? "unknown";
+        var effectiveRoles = await delegations.GetEffectiveRolesAsync(userName);
+        return Ok(await _engine.GetInboxTasksForRolesAsync(effectiveRoles));
     }
 
     [HttpPost("{id}/action")]

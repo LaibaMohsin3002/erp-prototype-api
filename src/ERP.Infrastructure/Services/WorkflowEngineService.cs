@@ -10,12 +10,14 @@ public class WorkflowEngineService
     private readonly AppDbContext _db;
     private readonly AuditService _audit;
     private readonly WorkflowDefinitionService _definitions;
+    private readonly DelegationService _delegations;
 
-    public WorkflowEngineService(AppDbContext db, AuditService audit, WorkflowDefinitionService definitions)
+    public WorkflowEngineService(AppDbContext db, AuditService audit, WorkflowDefinitionService definitions, DelegationService delegations)
     {
         _db = db;
         _audit = audit;
         _definitions = definitions;
+        _delegations = delegations;
     }
 
     // Groups steps into ordered "stages" — a stage is either one sequential step,
@@ -69,7 +71,8 @@ public class WorkflowEngineService
             {
                 StepNo = step.StepNo,
                 AssignedRole = step.RequiredRole,
-                Status = "Pending"
+                Status = "Pending",
+                DueDate = step.TimeLimitHours > 0 ? DateTime.UtcNow.AddHours(step.TimeLimitHours) : null
             });
         }
 
@@ -92,6 +95,10 @@ public class WorkflowEngineService
         if (task.Status != "Pending") return (false, "This task has already been actioned.", null, null, null);
         if (action is not ("Approve" or "Reject" or "Return")) return (false, "Invalid action.", null, null, null);
 
+        var effectiveRoles = await _delegations.GetEffectiveRolesAsync(actingUser);
+        if (!effectiveRoles.Contains(task.AssignedRole))
+            return (false, "You are not authorized to act on this task.", null, null, null);
+
         var instance = task.Instance;
 
         var alreadyActedOnThisInstance = await _db.WorkflowTasks
@@ -103,6 +110,13 @@ public class WorkflowEngineService
         task.ActionedBy = actingUser;
         task.ActionedDate = DateTime.UtcNow;
         task.Comments = comments;
+
+        // Close out any sibling tasks at the same step (e.g. an escalated duplicate) once one of them is actioned
+        var siblingTasks = await _db.WorkflowTasks
+            .Where(t => t.WorkflowInstanceId == instance.WorkflowInstanceId && t.StepNo == task.StepNo && t.Status == "Pending" && t.WorkflowTaskId != task.WorkflowTaskId)
+            .ToListAsync();
+        foreach (var sibling in siblingTasks)
+            sibling.Status = "Cancelled";
 
         await _audit.LogAsync(actingUser, action, instance.DocumentType, instance.DocumentId, comments);
 
@@ -143,6 +157,7 @@ public class WorkflowEngineService
         }
 
         instance.CurrentStepNo = nextStage.Min(s => s.StepNo);
+
         foreach (var step in nextStage)
         {
             _db.WorkflowTasks.Add(new WorkflowTask
@@ -150,7 +165,8 @@ public class WorkflowEngineService
                 WorkflowInstanceId = instance.WorkflowInstanceId,
                 StepNo = step.StepNo,
                 AssignedRole = step.RequiredRole,
-                Status = "Pending"
+                Status = "Pending",
+                DueDate = step.TimeLimitHours > 0 ? DateTime.UtcNow.AddHours(step.TimeLimitHours) : null
             });
         }
 
