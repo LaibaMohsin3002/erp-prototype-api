@@ -43,8 +43,8 @@ public class WorkflowDefinitionsController : ControllerBase
     public async Task<IActionResult> Update(int id, CreateWorkflowDefinitionDto dto)
     {
         var actingUser = User.Identity?.Name ?? "unknown";
-        var (success, error) = await _service.UpdateAsync(id, dto, actingUser);
-        return success ? NoContent() : BadRequest(error);
+        var (success, error, newDefinitionId) = await _service.UpdateAsync(id, dto, actingUser);
+        return success ? Ok(new { workflowDefinitionId = newDefinitionId }) : BadRequest(error);
     }
 
     [HttpDelete("{id}")]

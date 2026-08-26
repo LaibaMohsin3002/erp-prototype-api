@@ -409,6 +409,104 @@ namespace ERP.Infrastructure.Migrations
                     b.ToTable("UserRoles");
                 });
 
+            modelBuilder.Entity("ERP.Domain.Entities.WorkflowActionToken", b =>
+                {
+                    b.Property<int>("WorkflowActionTokenId")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("WorkflowActionTokenId"));
+
+                    b.Property<string>("Action")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<DateTime>("CreatedDate")
+                        .HasColumnType("datetime2");
+
+                    b.Property<DateTime>("ExpiresAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<bool>("IsUsed")
+                        .HasColumnType("bit");
+
+                    b.Property<string>("Token")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(450)");
+
+                    b.Property<int>("WorkflowTaskId")
+                        .HasColumnType("int");
+
+                    b.HasKey("WorkflowActionTokenId");
+
+                    b.HasIndex("Token")
+                        .IsUnique();
+
+                    b.HasIndex("WorkflowTaskId");
+
+                    b.ToTable("WorkflowActionTokens");
+                });
+
+            modelBuilder.Entity("ERP.Domain.Entities.WorkflowAuditEntry", b =>
+                {
+                    b.Property<int>("WorkflowAuditEntryId")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("WorkflowAuditEntryId"));
+
+                    b.Property<string>("ActingUser")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("Action")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<DateTime>("ActionDate")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("AssignedApproverRole")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("Comments")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("DelegatedFromUser")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<int>("DocumentId")
+                        .HasColumnType("int");
+
+                    b.Property<string>("DocumentType")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("NewStatus")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("NotificationReference")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("PreviousStatus")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<int?>("StepNo")
+                        .HasColumnType("int");
+
+                    b.Property<int>("WorkflowInstanceId")
+                        .HasColumnType("int");
+
+                    b.Property<int>("WorkflowVersion")
+                        .HasColumnType("int");
+
+                    b.HasKey("WorkflowAuditEntryId");
+
+                    b.HasIndex("WorkflowInstanceId");
+
+                    b.ToTable("WorkflowAuditEntries");
+                });
+
             modelBuilder.Entity("ERP.Domain.Entities.WorkflowDefinition", b =>
                 {
                     b.Property<int>("WorkflowDefinitionId")
@@ -424,6 +522,9 @@ namespace ERP.Infrastructure.Migrations
                     b.Property<bool>("IsActive")
                         .HasColumnType("bit");
 
+                    b.Property<bool>("IsLatestVersion")
+                        .HasColumnType("bit");
+
                     b.Property<decimal>("MaxAmount")
                         .HasPrecision(18, 2)
                         .HasColumnType("decimal(18,2)");
@@ -436,7 +537,15 @@ namespace ERP.Infrastructure.Migrations
                         .IsRequired()
                         .HasColumnType("nvarchar(max)");
 
+                    b.Property<int?>("PreviousVersionId")
+                        .HasColumnType("int");
+
+                    b.Property<int>("Version")
+                        .HasColumnType("int");
+
                     b.HasKey("WorkflowDefinitionId");
+
+                    b.HasIndex("PreviousVersionId");
 
                     b.ToTable("WorkflowDefinitions");
                 });
@@ -496,6 +605,10 @@ namespace ERP.Infrastructure.Migrations
 
                     b.Property<int>("ParallelGroup")
                         .HasColumnType("int");
+
+                    b.Property<string>("Priority")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
 
                     b.Property<string>("RequiredRole")
                         .IsRequired()
@@ -641,6 +754,36 @@ namespace ERP.Infrastructure.Migrations
                     b.Navigation("Role");
 
                     b.Navigation("User");
+                });
+
+            modelBuilder.Entity("ERP.Domain.Entities.WorkflowActionToken", b =>
+                {
+                    b.HasOne("ERP.Domain.Entities.WorkflowTask", "Task")
+                        .WithMany()
+                        .HasForeignKey("WorkflowTaskId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Task");
+                });
+
+            modelBuilder.Entity("ERP.Domain.Entities.WorkflowAuditEntry", b =>
+                {
+                    b.HasOne("ERP.Domain.Entities.WorkflowInstance", "Instance")
+                        .WithMany()
+                        .HasForeignKey("WorkflowInstanceId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Instance");
+                });
+
+            modelBuilder.Entity("ERP.Domain.Entities.WorkflowDefinition", b =>
+                {
+                    b.HasOne("ERP.Domain.Entities.WorkflowDefinition", null)
+                        .WithMany()
+                        .HasForeignKey("PreviousVersionId")
+                        .OnDelete(DeleteBehavior.Restrict);
                 });
 
             modelBuilder.Entity("ERP.Domain.Entities.WorkflowInstance", b =>

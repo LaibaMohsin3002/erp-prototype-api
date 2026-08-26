@@ -92,4 +92,32 @@ public class DelegationService
 
         return ownRoles.Concat(delegatedRoles).Distinct().ToList();
     }
+
+    public async Task<string?> GetDelegatorIfActingViaDelegationAsync(string actingUserName, string roleName)
+    {
+        var actingUser = await _db.Users.FirstOrDefaultAsync(u => u.UserName == actingUserName);
+        if (actingUser is null) return null;
+
+        var directlyHoldsRole = await _db.UserRoles
+            .Where(ur => ur.IsActive && ur.UserId == actingUser.UserId)
+            .Join(_db.Roles, ur => ur.RoleId, r => r.RoleId, (ur, r) => r.RoleName)
+            .AnyAsync(rn => rn == roleName);
+
+        if (directlyHoldsRole) return null; // acting on their own authority, not via delegation
+
+        var now = DateTime.UtcNow;
+        var delegation = await _db.Delegations
+            .Include(d => d.Delegator)
+            .Where(d => d.IsActive && d.DelegateUserId == actingUser.UserId && d.StartDate <= now && d.EndDate >= now)
+            .FirstOrDefaultAsync();
+
+        if (delegation is null) return null;
+
+        var delegatorHoldsRole = await _db.UserRoles
+            .Where(ur => ur.IsActive && ur.UserId == delegation.DelegatorUserId)
+            .Join(_db.Roles, ur => ur.RoleId, r => r.RoleId, (ur, r) => r.RoleName)
+            .AnyAsync(rn => rn == roleName);
+
+        return delegatorHoldsRole ? delegation.Delegator.UserName : null;
+    }
 }

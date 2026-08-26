@@ -10,7 +10,6 @@ public class EscalationBackgroundService : BackgroundService
 {
     private readonly IServiceScopeFactory _scopeFactory;
     private readonly ILogger<EscalationBackgroundService> _logger;
-    //private static readonly TimeSpan CheckInterval = TimeSpan.FromSeconds(30);
     private static readonly TimeSpan CheckInterval = TimeSpan.FromMinutes(5);
 
     public EscalationBackgroundService(IServiceScopeFactory scopeFactory, ILogger<EscalationBackgroundService> logger)
@@ -23,14 +22,8 @@ public class EscalationBackgroundService : BackgroundService
     {
         while (!stoppingToken.IsCancellationRequested)
         {
-            try
-            {
-                await CheckOverdueTasksAsync();
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Escalation check failed.");
-            }
+            try { await CheckOverdueTasksAsync(); }
+            catch (Exception ex) { _logger.LogError(ex, "Escalation check failed."); }
 
             await Task.Delay(CheckInterval, stoppingToken);
         }
@@ -41,6 +34,7 @@ public class EscalationBackgroundService : BackgroundService
         using var scope = _scopeFactory.CreateScope();
         var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
         var audit = scope.ServiceProvider.GetRequiredService<AuditService>();
+        var emailApproval = scope.ServiceProvider.GetRequiredService<EmailApprovalService>();
 
         var now = DateTime.UtcNow;
 
@@ -56,23 +50,27 @@ public class EscalationBackgroundService : BackgroundService
 
             if (step is not null && !string.IsNullOrWhiteSpace(step.EscalationRole))
             {
-                // Widen who can act on this task by creating an additional task at the same step for the escalation role
-                db.WorkflowTasks.Add(new Domain.Entities.WorkflowTask
+                var escalatedTask = new Domain.Entities.WorkflowTask
                 {
                     WorkflowInstanceId = task.WorkflowInstanceId,
                     StepNo = task.StepNo,
                     AssignedRole = step.EscalationRole,
                     Status = "Pending",
                     DueDate = null
-                });
+                };
+                db.WorkflowTasks.Add(escalatedTask);
+                await db.SaveChangesAsync();
 
+                await emailApproval.SendApprovalEmailAsync(escalatedTask.WorkflowTaskId);
                 await audit.LogAsync("system", "Escalate", task.Instance.DocumentType, task.Instance.DocumentId,
                     $"Task overdue at step {task.StepNo}, escalated to {step.EscalationRole}");
             }
             else
             {
+                // No escalation role configured — send a reminder email to the original assignee instead
+                await emailApproval.SendReminderEmailAsync(task.WorkflowTaskId);
                 await audit.LogAsync("system", "OverdueReminder", task.Instance.DocumentType, task.Instance.DocumentId,
-                    $"Task overdue at step {task.StepNo}, no escalation role configured — reminder only");
+                    $"Task overdue at step {task.StepNo}, no escalation role configured — reminder sent");
             }
         }
 

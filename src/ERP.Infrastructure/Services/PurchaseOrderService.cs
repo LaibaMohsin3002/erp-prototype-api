@@ -140,7 +140,8 @@ public class PurchaseOrderService
     {
         var po = await _db.POHeaders.FindAsync(poId);
         if (po is null) return (false, "Purchase order not found.");
-        if (po.Status != "Draft") return (false, "Only draft purchase orders can be submitted.");
+        if (po.Status != "Draft" && po.Status != "Returned")
+            return (false, "Only draft or returned purchase orders can be submitted.");
 
         var (success, error, _) = await engine.StartWorkflowAsync("PurchaseOrder", poId, po.TotalAmount, actingUser);
         if (!success) return (false, error);
@@ -171,5 +172,81 @@ public class PurchaseOrderService
             .OrderBy(t => t.StepNo)
             .Select(t => new ApprovalHistoryDto(t.StepNo, t.AssignedRole, t.Status, t.ActionedBy, t.ActionedDate, t.Comments))
             .ToList();
+    }
+
+    public async Task<(bool Success, string? Error)> UpdateAsync(int poId, CreatePODto dto, string actingUser)
+    {
+        var po = await _db.POHeaders.Include(h => h.Lines).FirstOrDefaultAsync(h => h.POId == poId);
+        if (po is null) return (false, "Purchase order not found.");
+        if (po.Status != "Draft" && po.Status != "Returned")
+            return (false, "Only draft or returned purchase orders can be edited.");
+
+        if (dto.Lines is null || dto.Lines.Count == 0)
+            return (false, "A purchase order must have at least one line item.");
+
+        var supplier = await _db.Suppliers.FindAsync(dto.SupplierId);
+        if (supplier is null || !supplier.IsActive)
+            return (false, "Supplier not found or inactive.");
+
+        var itemIds = dto.Lines.Select(l => l.ItemId).ToList();
+        var items = await _db.Items.Where(i => itemIds.Contains(i.ItemId)).ToListAsync();
+        if (items.Count != itemIds.Distinct().Count())
+            return (false, "One or more items not found.");
+
+        foreach (var line in dto.Lines)
+        {
+            if (line.Qty <= 0) return (false, "Line quantity must be greater than zero.");
+            if (line.UnitPrice <= 0) return (false, "Line unit price must be greater than zero.");
+        }
+
+        var duplicateItemIds = dto.Lines.GroupBy(l => l.ItemId).Where(g => g.Count() > 1).Select(g => g.Key).ToList();
+        if (duplicateItemIds.Any())
+            return (false, "Each item can only appear once per purchase order.");
+
+        po.SupplierId = dto.SupplierId;
+        po.PODate = dto.PODate;
+        po.Remarks = dto.Remarks;
+        po.PaymentTerms = dto.PaymentTerms;
+        po.DeliveryTerms = dto.DeliveryTerms;
+        po.DeliveryLocation = dto.DeliveryLocation;
+
+        _db.POLines.RemoveRange(po.Lines);
+        po.Lines.Clear();
+
+        decimal totalQty = 0;
+        decimal totalAmount = 0;
+        int lineNo = 1;
+
+        foreach (var lineInput in dto.Lines)
+        {
+            var item = items.First(i => i.ItemId == lineInput.ItemId);
+            var netPrice = Math.Round(lineInput.UnitPrice * (1 - lineInput.DiscountPercent / 100m), 2);
+            var amount = Math.Round(lineInput.Qty * netPrice, 2);
+
+            po.Lines.Add(new POLine
+            {
+                LineNo = lineNo++,
+                ItemId = item.ItemId,
+                ItemCode = item.ItemCode,
+                ItemDescription = item.ItemDescription,
+                Uom = item.Uom,
+                Qty = lineInput.Qty,
+                UnitPrice = lineInput.UnitPrice,
+                DiscountPercent = lineInput.DiscountPercent,
+                NetPrice = netPrice,
+                Amount = amount
+            });
+
+            totalQty += lineInput.Qty;
+            totalAmount += amount;
+        }
+
+        po.TotalQty = totalQty;
+        po.TotalAmount = totalAmount;
+        po.Status = "Draft"; // a returned PO goes back to Draft once edited, requiring an explicit re-submit
+
+        await _db.SaveChangesAsync();
+        await _audit.LogAsync(actingUser, "Update", "PurchaseOrder", po.POId, $"PO {po.PONumber} edited after being returned");
+        return (true, null);
     }
 }

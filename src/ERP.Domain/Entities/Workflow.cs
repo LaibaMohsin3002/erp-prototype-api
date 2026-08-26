@@ -4,10 +4,13 @@ public class WorkflowDefinition
 {
     public int WorkflowDefinitionId { get; set; }
     public string Name { get; set; } = default!;
-    public string DocumentType { get; set; } = default!; // e.g. "PurchaseOrder"
+    public string DocumentType { get; set; } = default!;
     public decimal MinAmount { get; set; }
     public decimal MaxAmount { get; set; }
     public bool IsActive { get; set; } = true;
+    public int Version { get; set; } = 1;
+    public int? PreviousVersionId { get; set; }
+    public bool IsLatestVersion { get; set; } = true;
 
     public ICollection<WorkflowStep> Steps { get; set; } = new List<WorkflowStep>();
 }
@@ -22,6 +25,7 @@ public class WorkflowStep
     public int ParallelGroup { get; set; } // steps sharing a group number run in parallel; 0 = not parallel
     public int TimeLimitHours { get; set; } = 0; // 0 = no limit
     public string? EscalationRole { get; set; } // who it escalates to if overdue; null = no escalation
+    public string Priority { get; set; } = "Normal";
 }
 
 public class WorkflowInstance
@@ -67,4 +71,36 @@ public class Delegation
     public DateTime EndDate { get; set; }
     public string? Reason { get; set; }
     public bool IsActive { get; set; } = true;
+}
+
+public class WorkflowActionToken
+{
+    public int WorkflowActionTokenId { get; set; }
+    public string Token { get; set; } = default!;
+    public int WorkflowTaskId { get; set; }
+    public WorkflowTask Task { get; set; } = default!;
+    public string Action { get; set; } = default!; // "Approve" or "Reject"
+    public DateTime ExpiresAt { get; set; }
+    public bool IsUsed { get; set; } = false;
+    public DateTime CreatedDate { get; set; } = DateTime.UtcNow;
+}
+
+public class WorkflowAuditEntry
+{
+    public int WorkflowAuditEntryId { get; set; }
+    public int WorkflowInstanceId { get; set; }
+    public WorkflowInstance Instance { get; set; } = default!;
+    public int WorkflowVersion { get; set; }
+    public string DocumentType { get; set; } = default!;
+    public int DocumentId { get; set; }
+    public int? StepNo { get; set; }
+    public string? AssignedApproverRole { get; set; }
+    public string ActingUser { get; set; } = default!;
+    public string? DelegatedFromUser { get; set; }
+    public string Action { get; set; } = default!;
+    public DateTime ActionDate { get; set; } = DateTime.UtcNow;
+    public string? Comments { get; set; }
+    public string? PreviousStatus { get; set; }
+    public string? NewStatus { get; set; }
+    public string? NotificationReference { get; set; } // "In-App", "Email", or a token id
 }

@@ -73,6 +73,8 @@ builder.Services.AddScoped<WorkflowDefinitionService>();
 builder.Services.AddScoped<WorkflowEngineService>();
 builder.Services.AddScoped<DelegationService>();
 builder.Services.AddHostedService<EscalationBackgroundService>();
+builder.Services.AddScoped<EmailService>();
+builder.Services.AddScoped<EmailApprovalService>();
 
 builder.Services.AddCors(options =>
 {

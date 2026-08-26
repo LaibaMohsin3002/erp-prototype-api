@@ -25,6 +25,9 @@ public class AppDbContext : DbContext
     public DbSet<WorkflowInstance> WorkflowInstances => Set<WorkflowInstance>();
     public DbSet<WorkflowTask> WorkflowTasks => Set<WorkflowTask>();
     public DbSet<Delegation> Delegations => Set<Delegation>();
+
+    public DbSet<WorkflowActionToken> WorkflowActionTokens => Set<WorkflowActionToken>();
+    public DbSet<WorkflowAuditEntry> WorkflowAuditEntries => Set<WorkflowAuditEntry>();
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         modelBuilder.Entity<AppPage>().HasKey(p => p.PageId);
@@ -62,5 +65,11 @@ public class AppDbContext : DbContext
         .HasOne(d => d.Delegator).WithMany().HasForeignKey(d => d.DelegatorUserId).OnDelete(DeleteBehavior.Restrict);
         modelBuilder.Entity<Delegation>()
         .HasOne(d => d.Delegate).WithMany().HasForeignKey(d => d.DelegateUserId).OnDelete(DeleteBehavior.Restrict);
+        modelBuilder.Entity<WorkflowActionToken>().HasIndex(t => t.Token).IsUnique();
+        modelBuilder.Entity<WorkflowDefinition>()
+        .HasOne<WorkflowDefinition>()
+        .WithMany()
+        .HasForeignKey(d => d.PreviousVersionId)
+        .OnDelete(DeleteBehavior.Restrict);
     }
 }
