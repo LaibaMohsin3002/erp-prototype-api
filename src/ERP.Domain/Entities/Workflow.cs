@@ -26,6 +26,7 @@ public class WorkflowStep
     public int TimeLimitHours { get; set; } = 0; // 0 = no limit
     public string? EscalationRole { get; set; } // who it escalates to if overdue; null = no escalation
     public string Priority { get; set; } = "Normal";
+    public bool ReassignOnTimeout { get; set; } = false;
 }
 
 public class WorkflowInstance
@@ -58,6 +59,7 @@ public class WorkflowTask
     public DateTime CreatedDate { get; set; } = DateTime.UtcNow;
     public DateTime? DueDate { get; set; }
     public bool IsEscalated { get; set; } = false;
+    public bool ReminderSent { get; set; } = false;
 }
 
 public class Delegation
@@ -71,6 +73,10 @@ public class Delegation
     public DateTime EndDate { get; set; }
     public string? Reason { get; set; }
     public bool IsActive { get; set; } = true;
+    public string? DocumentType { get; set; }   // e.g. "PurchaseOrder"; null = all document types
+    public decimal? MinAmount { get; set; }
+    public decimal? MaxAmount { get; set; }
+    public string? OrgUnit { get; set; }
 }
 
 public class WorkflowActionToken
@@ -83,6 +89,7 @@ public class WorkflowActionToken
     public DateTime ExpiresAt { get; set; }
     public bool IsUsed { get; set; } = false;
     public DateTime CreatedDate { get; set; } = DateTime.UtcNow;
+    public string RecipientEmail { get; set; } = default!;
 }
 
 public class WorkflowAuditEntry

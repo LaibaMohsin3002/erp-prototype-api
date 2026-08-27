@@ -108,11 +108,23 @@ namespace ERP.Infrastructure.Migrations
                     b.Property<int>("DelegatorUserId")
                         .HasColumnType("int");
 
+                    b.Property<string>("DocumentType")
+                        .HasColumnType("nvarchar(max)");
+
                     b.Property<DateTime>("EndDate")
                         .HasColumnType("datetime2");
 
                     b.Property<bool>("IsActive")
                         .HasColumnType("bit");
+
+                    b.Property<decimal?>("MaxAmount")
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<decimal?>("MinAmount")
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<string>("OrgUnit")
+                        .HasColumnType("nvarchar(max)");
 
                     b.Property<string>("Reason")
                         .HasColumnType("nvarchar(max)");
@@ -430,6 +442,10 @@ namespace ERP.Infrastructure.Migrations
                     b.Property<bool>("IsUsed")
                         .HasColumnType("bit");
 
+                    b.Property<string>("RecipientEmail")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
                     b.Property<string>("Token")
                         .IsRequired()
                         .HasColumnType("nvarchar(450)");
@@ -610,6 +626,9 @@ namespace ERP.Infrastructure.Migrations
                         .IsRequired()
                         .HasColumnType("nvarchar(max)");
 
+                    b.Property<bool>("ReassignOnTimeout")
+                        .HasColumnType("bit");
+
                     b.Property<string>("RequiredRole")
                         .IsRequired()
                         .HasColumnType("nvarchar(max)");
@@ -658,6 +677,9 @@ namespace ERP.Infrastructure.Migrations
                         .HasColumnType("datetime2");
 
                     b.Property<bool>("IsEscalated")
+                        .HasColumnType("bit");
+
+                    b.Property<bool>("ReminderSent")
                         .HasColumnType("bit");
 
                     b.Property<string>("Status")

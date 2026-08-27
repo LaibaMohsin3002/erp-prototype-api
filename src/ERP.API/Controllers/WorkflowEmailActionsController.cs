@@ -21,9 +21,13 @@ public class WorkflowEmailActionsController : ControllerBase
 
     [HttpGet("{token}")]
     [AllowAnonymous]
-    public async Task<IActionResult> Redeem(string token)
+    public async Task<IActionResult> Redeem(string token, [FromQuery] string email)
     {
-        var (success, error, workflowTaskId, documentType, documentId, action, actingUserName) = await _emailApproval.RedeemTokenAsync(token);
+        if (string.IsNullOrEmpty(email))
+            return Html("<h2>Missing email parameter. Please use the link from your email.</h2>");
+
+        var (success, error, workflowTaskId, documentType, documentId, action, actingUserName) =
+            await _emailApproval.RedeemTokenAsync(token, email);
 
         if (!success)
             return Html($"<h2>{error}</h2>");

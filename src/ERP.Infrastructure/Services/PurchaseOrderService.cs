@@ -58,6 +58,9 @@ public class PurchaseOrderService
         if (string.IsNullOrWhiteSpace(dto.PaymentTerms) || string.IsNullOrWhiteSpace(dto.DeliveryTerms) || string.IsNullOrWhiteSpace(dto.DeliveryLocation))
             return (false, "Payment terms, delivery terms, and delivery location are required.", null);
 
+        if (dto.PODate < DateTime.Today.AddDays(-30) || dto.PODate > DateTime.Today.AddDays(30))
+            return (false, "PO Date must be within 30 days of today.", null);
+
         foreach (var line in dto.Lines)
         {
             if (line.DiscountPercent < 0 || line.DiscountPercent > 100)
@@ -135,13 +138,17 @@ public class PurchaseOrderService
         var count = await _db.POHeaders.CountAsync();
         return $"PO-{(count + 1):D6}"; // PO-000001, PO-000002, ...
     }
-
     public async Task<(bool Success, string? Error)> SubmitAsync(int poId, string actingUser, WorkflowEngineService engine)
     {
         var po = await _db.POHeaders.FindAsync(poId);
         if (po is null) return (false, "Purchase order not found.");
         if (po.Status != "Draft" && po.Status != "Returned")
             return (false, "Only draft or returned purchase orders can be submitted.");
+
+        var alreadyActive = await _db.WorkflowInstances
+            .AnyAsync(i => i.DocumentType == "PurchaseOrder" && i.DocumentId == poId && i.Status == "InProgress");
+        if (alreadyActive)
+            return (false, "This purchase order already has an active approval workflow in progress.");
 
         var (success, error, _) = await engine.StartWorkflowAsync("PurchaseOrder", poId, po.TotalAmount, actingUser);
         if (!success) return (false, error);
@@ -150,7 +157,6 @@ public class PurchaseOrderService
         await _db.SaveChangesAsync();
         return (true, null);
     }
-
     public async Task UpdateStatusAsync(int poId, string status)
     {
         var po = await _db.POHeaders.FindAsync(poId);
@@ -168,10 +174,13 @@ public class PurchaseOrderService
 
         if (instance is null) return new List<ApprovalHistoryDto>();
 
-        return instance.Tasks
-            .OrderBy(t => t.StepNo)
-            .Select(t => new ApprovalHistoryDto(t.StepNo, t.AssignedRole, t.Status, t.ActionedBy, t.ActionedDate, t.Comments))
-            .ToList();
+        return await _db.WorkflowAuditEntries
+               .Where(a => a.DocumentType == "PurchaseOrder" && a.DocumentId == poId)
+               .OrderBy(a => a.WorkflowAuditEntryId)
+               .Select(a => new ApprovalHistoryDto(
+                   a.StepNo, a.AssignedApproverRole, a.Action, a.NewStatus,
+                   a.ActingUser, a.DelegatedFromUser, a.ActionDate, a.Comments))
+               .ToListAsync();
     }
 
     public async Task<(bool Success, string? Error)> UpdateAsync(int poId, CreatePODto dto, string actingUser)
@@ -192,6 +201,9 @@ public class PurchaseOrderService
         var items = await _db.Items.Where(i => itemIds.Contains(i.ItemId)).ToListAsync();
         if (items.Count != itemIds.Distinct().Count())
             return (false, "One or more items not found.");
+
+        if (dto.PODate < DateTime.Today.AddDays(-30) || dto.PODate > DateTime.Today.AddDays(30))
+            return (false, "PO Date must be within 30 days of today.");
 
         foreach (var line in dto.Lines)
         {

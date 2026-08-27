@@ -26,9 +26,9 @@ public class WorkflowDefinitionService
         if (def is null) return null;
 
         var steps = def.Steps
-            .OrderBy(s => s.StepNo)
-            .Select(s => new WorkflowStepDto(s.WorkflowStepId, s.StepNo, s.RequiredRole, s.ParallelGroup, s.TimeLimitHours, s.EscalationRole, s.Priority))
-            .ToList();
+          .OrderBy(s => s.StepNo)
+          .Select(s => new WorkflowStepDto(s.WorkflowStepId, s.StepNo, s.RequiredRole, s.ParallelGroup, s.TimeLimitHours, s.EscalationRole, s.Priority, s.ReassignOnTimeout))
+          .ToList();
         return new WorkflowDefinitionDetailDto(def.WorkflowDefinitionId, def.Name, def.DocumentType, def.MinAmount, def.MaxAmount, def.IsActive, def.Version, def.IsLatestVersion, def.PreviousVersionId, steps);
         //return new WorkflowDefinitionDetailDto(def.WorkflowDefinitionId, def.Name, def.DocumentType, def.MinAmount, def.MaxAmount, def.IsActive, steps);
     }
@@ -72,7 +72,8 @@ public class WorkflowDefinitionService
                 ParallelGroup = step.ParallelGroup,
                 TimeLimitHours = step.TimeLimitHours,
                 EscalationRole = step.EscalationRole,
-                Priority = string.IsNullOrWhiteSpace(step.Priority) ? "Normal" : step.Priority
+                Priority = string.IsNullOrWhiteSpace(step.Priority) ? "Normal" : step.Priority,
+                ReassignOnTimeout = step.ReassignOnTimeout
             });
         }
 
@@ -132,6 +133,7 @@ public class WorkflowDefinitionService
 
             _db.WorkflowSteps.RemoveRange(definition.Steps);
             definition.Steps.Clear();
+
             foreach (var step in dto.Steps.OrderBy(s => s.StepNo))
             {
                 definition.Steps.Add(new WorkflowStep
@@ -141,7 +143,8 @@ public class WorkflowDefinitionService
                     ParallelGroup = step.ParallelGroup,
                     TimeLimitHours = step.TimeLimitHours,
                     EscalationRole = step.EscalationRole,
-                    Priority = string.IsNullOrWhiteSpace(step.Priority) ? "Normal" : step.Priority
+                    Priority = string.IsNullOrWhiteSpace(step.Priority) ? "Normal" : step.Priority,
+                    ReassignOnTimeout = step.ReassignOnTimeout
                 });
             }
 
@@ -163,6 +166,7 @@ public class WorkflowDefinitionService
             PreviousVersionId = definition.WorkflowDefinitionId,
             IsLatestVersion = true
         };
+
         foreach (var step in dto.Steps.OrderBy(s => s.StepNo))
         {
             newVersion.Steps.Add(new WorkflowStep
@@ -171,7 +175,9 @@ public class WorkflowDefinitionService
                 RequiredRole = step.RequiredRole,
                 ParallelGroup = step.ParallelGroup,
                 TimeLimitHours = step.TimeLimitHours,
-                EscalationRole = step.EscalationRole
+                EscalationRole = step.EscalationRole,
+                Priority = string.IsNullOrWhiteSpace(step.Priority) ? "Normal" : step.Priority,
+                ReassignOnTimeout = step.ReassignOnTimeout
             });
         }
 

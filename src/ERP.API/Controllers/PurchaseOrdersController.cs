@@ -24,6 +24,7 @@ public class PurchaseOrdersController : ControllerBase
     }
 
     [HttpPost]
+    [Authorize(Roles = "SCM User,SCM Manager")]
     public async Task<IActionResult> Create(CreatePODto dto)
     {
         var userName = User.Identity?.Name ?? "unknown";
@@ -32,6 +33,7 @@ public class PurchaseOrdersController : ControllerBase
     }
 
     [HttpPost("{id}/submit")]
+    [Authorize(Roles = "SCM User,SCM Manager")]
     public async Task<IActionResult> Submit(int id, [FromServices] WorkflowEngineService engine)
     {
         var actingUser = User.Identity?.Name ?? "unknown";

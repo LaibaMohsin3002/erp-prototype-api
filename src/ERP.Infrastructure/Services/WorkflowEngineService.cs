@@ -124,8 +124,15 @@ public class WorkflowEngineService
         if (task.Status != "Pending") return (false, "This task has already been actioned.", null, null, null);
         if (action is not ("Approve" or "Reject" or "Return" or "RequestInfo")) return (false, "Invalid action.", null, null, null);
 
-        var effectiveRoles = await _delegations.GetEffectiveRolesAsync(actingUser);
-        if (!effectiveRoles.Contains(task.AssignedRole))
+        decimal actionAmount = 0;
+        if (task.Instance.DocumentType == "PurchaseOrder")
+        {
+            var po = await _db.POHeaders.FindAsync(task.Instance.DocumentId);
+            actionAmount = po?.TotalAmount ?? 0;
+        }
+
+        var authorized = await _delegations.CanActOnTaskAsync(actingUser, task.AssignedRole, task.Instance.DocumentType, actionAmount);
+        if (!authorized)
             return (false, "You are not authorized to act on this task.", null, null, null);
 
         var instance = task.Instance;
@@ -222,25 +229,30 @@ public class WorkflowEngineService
         return (true, null, instance.DocumentType, instance.DocumentId, null);
     }
 
-    public async Task<List<InboxTaskDto>> GetInboxTasksForRolesAsync(List<string> roles)
+    public async Task<List<InboxTaskDto>> GetInboxTasksForUserAsync(string userName)
     {
-        var tasks = await _db.WorkflowTasks
+        var effectiveRoles = await _delegations.GetEffectiveRolesAsync(userName);
+
+        var candidateTasks = await _db.WorkflowTasks
             .Include(t => t.Instance).ThenInclude(i => i.Definition).ThenInclude(d => d.Steps)
-            .Where(t => t.Status == "Pending" && roles.Contains(t.AssignedRole))
+            .Where(t => t.Status == "Pending" && effectiveRoles.Contains(t.AssignedRole))
             .OrderBy(t => t.CreatedDate)
             .ToListAsync();
 
         var result = new List<InboxTaskDto>();
-        foreach (var t in tasks)
+        foreach (var t in candidateTasks)
         {
+            decimal amount = 0;
             string docNumber = $"{t.Instance.DocumentType} #{t.Instance.DocumentId}";
-            decimal? amount = null;
 
             if (t.Instance.DocumentType == "PurchaseOrder")
             {
                 var po = await _db.POHeaders.FindAsync(t.Instance.DocumentId);
                 if (po is not null) { docNumber = po.PONumber; amount = po.TotalAmount; }
             }
+
+            var authorized = await _delegations.CanActOnTaskAsync(userName, t.AssignedRole, t.Instance.DocumentType, amount);
+            if (!authorized) continue; // in effectiveRoles via delegation, but out of that delegation's scope — hide it
 
             var step = t.Instance.Definition.Steps.FirstOrDefault(s => s.StepNo == t.StepNo);
             var priority = step?.Priority ?? "Normal";
@@ -251,5 +263,15 @@ public class WorkflowEngineService
                 amount, priority, t.DueDate, t.Instance.Status, t.CreatedDate));
         }
         return result;
+    }
+
+    // Public wrapper so system processes (e.g. escalation) outside a normal user action can still write to the workflow audit trail.
+    public async Task LogSystemAuditAsync(int instanceId, int workflowVersion, int? stepNo, string? assignedRole,
+        string action, string? comments, string? previousStatus, string? newStatus)
+    {
+        var instance = await _db.WorkflowInstances.FindAsync(instanceId);
+        if (instance is null) return;
+
+        await LogWorkflowAuditAsync(instance, workflowVersion, stepNo, assignedRole, "system", null, action, comments, previousStatus, newStatus, "In-App");
     }
 }

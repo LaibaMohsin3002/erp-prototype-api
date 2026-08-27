@@ -24,8 +24,8 @@ public class DelegationsController : ControllerBase
     public async Task<IActionResult> Create(CreateDelegationDto dto)
     {
         var userName = User.Identity?.Name ?? "unknown";
-        var (success, error, id) = await _service.CreateAsync(dto, userName);
-        return success ? Ok(new { delegationId = id }) : BadRequest(error);
+        var (success, error, id, warning) = await _service.CreateAsync(dto, userName);
+        return success ? Ok(new { delegationId = id, warning }) : BadRequest(error);
     }
 
     [HttpPatch("{id}/revoke")]
